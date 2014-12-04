@@ -656,40 +656,46 @@ function drush_prompt($prompt, $default = NULL, $required = TRUE, $password = FA
  * or @see drush_shell_exec() to execute a shell command and capture the
  * shell output.
  *
- * @param $function
+ * @param $callable
  *   The name of the function. Any additional arguments are passed along.
  * @return
  *   The return value of the function, or TRUE if simulation mode is enabled.
  *
  */
-function drush_op($function) {
+function drush_op($callable) {
   $args_printed = array();
   $args = func_get_args();
   array_shift($args); // Skip function name
   foreach ($args as $arg) {
     $args_printed[] = is_scalar($arg) ? $arg : (is_array($arg) ? 'Array' : 'Object');
   }
+  $callable_string = is_array($callable) ? implode('::', $callable) : $callable;
 
   // Special checking for drush_op('system')
-  if ($function == 'system') {
+  if ($callable == 'system') {
     drush_log(dt("Do not call drush_op('system'); use drush_op_system instead"), 'debug');
   }
 
   if (drush_get_context('DRUSH_VERBOSE') || drush_get_context('DRUSH_SIMULATE')) {
-     drush_log(sprintf("Calling %s(%s)", $function, implode(", ", $args_printed)), 'debug');
+     drush_log(sprintf("Calling %s(%s)", $callable_string, implode(", ", $args_printed)), 'debug');
   }
 
   if (drush_get_context('DRUSH_SIMULATE')) {
     return TRUE;
   }
 
-  return drush_call_user_func_array($function, $args);
+  return drush_call_user_func_array($callable, $args);
 }
 
 /**
  * Mimic cufa but still call function directly. See http://drupal.org/node/329012#comment-1260752
  */
 function drush_call_user_func_array($function, $args = array() ) {
+  if (is_array($function)) {
+    // $callable is a method so always use CUFA.
+    return call_user_func_array($function, $args);
+  }
+
   switch (count($args)) {
     case 0: return $function(); break;
     case 1: return $function($args[0]); break;

@@ -44,11 +44,18 @@ function drush_migrate_manifest($manifest) {
     Database::addConnectionInfo('migrate', 'default', $db_spec);
     $list = Yaml::parse($manifest);
     if (is_array($list)) {
+      $all_executables = array();
       $message = new DrushLogMigrateMessage();
       foreach (entity_load_multiple('migration', $list) as $migration_id => $migration) {
         drush_log("Running $migration_id", 'ok');
         $executable = new MigrateExecutable($migration, $message);
-        $executable->import();
+        $all_executables[$migration_id] = array(
+          'executable' => $executable,
+          'source-config' => $migration->source,
+          'destination-config' => $migration->destination,
+        );
+        // drush_op() provides --simulate support.
+        drush_op(array($executable, 'import'));
 
         // Remove the migration from the list, so that we can track whether any
         // migrations were not found.
@@ -61,6 +68,7 @@ function drush_migrate_manifest($manifest) {
         )), 'warning');
       }
       drush_invoke_process('@self', 'cache-rebuild', array(), array(), FALSE);
+      return $all_executables;
     }
     else {
       return drush_set_error('The manifest file cannot be parsed.');
