@@ -82,7 +82,6 @@ alias ev='drush php-eval'
 alias sa='drush site-alias'
 alias lsa='drush site-alias --local'
 alias st='drush core-status'
-alias use='drush site-set'
 
 # Aliases for drush commands that work on the current drupal site
 alias cc='drush cache-clear'
@@ -126,7 +125,7 @@ if [ -h "$d" ] ; then
     d="$d2"
   else
     d="$(dirname $d)/$d2"
-  fi 
+  fi
 fi
 
 # Get the directory that drush is stored in.
@@ -135,6 +134,16 @@ d="$(dirname "$d")"
 if [ -f "$d/drush.complete.sh" ] ; then
   . "$d/drush.complete.sh"
 fi
+
+# 'use @site' will run 'drush site-set' and then set your path
+# such that the site-local Drush appears first.
+function use() {
+  p=$(drush site-set "$1" --path --strict=0)
+  if [ -n "$p" ] && [ "$p" != "${p/:/}" ]
+  then
+    export PATH="$p"
+  fi
+}
 
 # We extend the cd command to allow convenient
 # shorthand notations, such as:
