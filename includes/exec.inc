@@ -237,9 +237,8 @@ function drush_shell_proc_open($cmd) {
   }
   if (!drush_get_context('DRUSH_SIMULATE')) {
     $process = new Process($cmd, NULL, NULL, NULL, 0);
-    $proc_status = proc_get_status($process);
-    $exit_code = proc_close($process);
-    return ($proc_status["running"] ? $exit_code : $proc_status["exitcode"] );
+    $result = $process->run();
+    return $result;
   }
   return 0;
 }
