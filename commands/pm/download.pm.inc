@@ -5,7 +5,8 @@
  * pm-download command implementation.
  */
 
-use \Drush\UpdateService\ReleaseInfo;
+use Drush\Log\LogLevel;
+use Drush\UpdateService\ReleaseInfo;
 
 /**
  * Implements drush_hook_COMMAND_validate().
@@ -57,7 +58,7 @@ function drush_pm_download_validate() {
   if (($package_handler != 'wget') && ($variant != 'profile-only')) {
     $new_variant = 'profile-only';
     if ($variant) {
-      drush_log(dt('Variant !variant is incompatible with !ph package-handler.', array('!variant' => $variant, '!ph' => $package_handler)), 'warning');
+      drush_log(dt('Variant !variant is incompatible with !ph package-handler.', array('!variant' => $variant, '!ph' => $package_handler)), LogLevel::WARNING);
     }
   }
   // If we are working on a drupal root, full variant is not an option.
@@ -66,14 +67,14 @@ function drush_pm_download_validate() {
       $new_variant = 'projects';
     }
     if ($variant == 'full') {
-      drush_log(dt('Variant full is not a valid option within a Drupal root.'), 'warning');
+      drush_log(dt('Variant full is not a valid option within a Drupal root.'), LogLevel::WARNING);
     }
   }
 
   if (isset($new_variant)) {
     drush_set_option('variant', $new_variant);
     if ($variant) {
-      drush_log(dt('Switching to --variant=!variant.', array('!variant' => $new_variant)), 'ok');
+      drush_log(dt('Switching to --variant=!variant.', array('!variant' => $new_variant)), LogLevel::OK);
     }
   }
 }
@@ -89,7 +90,7 @@ function drush_pm_download() {
   }
 
   // Pick cli options.
-  $source = drush_get_option('source', ReleaseInfo::DEFAULT_URL);
+  $status_url = drush_get_option('source', ReleaseInfo::DEFAULT_URL);
   $restrict_to = drush_get_option('dev', '');
   $select = drush_get_option('select', 'auto');
   $all = drush_get_option('all', FALSE);
@@ -105,8 +106,7 @@ function drush_pm_download() {
 
   // Get release history for each request and download the project.
   foreach ($requests as $request) {
-    $request = pm_parse_request($request);
-    $request['status url'] = $source;
+    $request = pm_parse_request($request, $status_url, $projects);
     $version = isset($projects[$request['name']]) ? $projects[$request['name']]['version'] : NULL;
     $release = $release_info->selectReleaseBasedOnStrategy($request, $restrict_to, $select, $all, $version);
     if ($release == FALSE) {
@@ -160,7 +160,7 @@ function drush_pm_download() {
     if (!$request['full_project_path']) {
       // Delete the cached update service file since it may be invalid.
       $release_info->clearCached($request);
-      drush_log(dt('Error downloading !name', array('!name' => $request['name']), 'error'));
+      drush_log(dt('Error downloading !name', array('!name' => $request['name']), LogLevel::ERROR));
       continue;
     }
 
@@ -202,7 +202,7 @@ function drush_pm_download() {
           drush_delete_dir($request['project_install_location'], TRUE);
         }
         else {
-          drush_log(dt("Skip installation of !project to !dest.", array('!project' => $request['name'], '!dest' => $request['project_install_location'])), 'warning');
+          drush_log(dt("Skip installation of !project to !dest.", array('!project' => $request['name'], '!dest' => $request['project_install_location'])), LogLevel::WARNING);
           continue;
         }
       }
@@ -216,7 +216,7 @@ function drush_pm_download() {
 
     // Copy the project to the install location.
     if (drush_op('_drush_recursive_copy', $request['full_project_path'], $request['project_install_location'])) {
-      drush_log(dt("Project !project (!version) downloaded to !dest.", array('!project' => $request['name'], '!version' => $release['version'], '!dest' => $request['project_install_location'])), 'success');
+      drush_log(dt("Project !project (!version) downloaded to !dest.", array('!project' => $request['name'], '!version' => $release['version'], '!dest' => $request['project_install_location'])), LogLevel::SUCCESS);
       // Adjust full_project_path to the final project location.
       $request['full_project_path'] = $request['project_install_location'];
 

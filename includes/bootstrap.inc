@@ -1,5 +1,6 @@
 <?php
 
+use Drush\Log\LogLevel;
 
 /**
  * No bootstrap.
@@ -112,6 +113,8 @@ define('DRUSH_BOOTSTRAP_DRUPAL_LOGIN', 6);
  * Return the list of bootstrap objects that are available for
  * initializing a CMS with Drush.  We insure that any given candidate
  * class is instantiated only once.
+ *
+ * @return \Drush\Boot\Boot[]
  */
 function drush_get_bootstrap_candidates() {
   $candidate_classes = drush_get_bootstrap_candidate_classnames();
@@ -135,6 +138,8 @@ function drush_get_bootstrap_candidates() {
 /**
  * Find the list of bootstrap classnames available for initializing a
  * CMS with Drush.
+ *
+ * @return array
  */
 function drush_get_bootstrap_candidate_classnames() {
   // Give all commandfiles a chance to return candidates.  They should
@@ -156,7 +161,12 @@ function drush_get_bootstrap_candidate_classnames() {
   return $candidates;
 }
 
+/**
+ * Look up the best bootstrap class for the given location
+ * from the set of available candidates.
+ */
 function drush_bootstrap_class_for_root($path) {
+  drush_load_bootstrap_commandfile_at_path($path);
   $candidates = drush_get_bootstrap_candidates();
   foreach ($candidates as $candidate) {
     if ($candidate->valid_root($path)) {
@@ -164,6 +174,23 @@ function drush_bootstrap_class_for_root($path) {
     }
   }
   return NULL;
+}
+
+/**
+ * Check to see if there is a bootstrap class available
+ * at the specified location; if there is, load it.
+ */
+function drush_load_bootstrap_commandfile_at_path($path) {
+  static $paths = array();
+
+  if (!empty($path) && (!array_key_exists($path, $paths))) {
+    $paths[$path] = TRUE;
+    // Check to see if we have any bootstrap classes in this location.
+    $bootstrap_class_dir = $path . '/drush/bootstrap';
+    if (is_dir($bootstrap_class_dir)) {
+      _drush_add_commandfiles(array($bootstrap_class_dir), DRUSH_BOOTSTRAP_NONE);
+    }
+  }
 }
 
 /**
@@ -204,6 +231,8 @@ function drush_latch_bootstrap_object($bootstrap) {
  * Get the appropriate bootstrap object.  We'll search for a new
  * bootstrap object every time someone asks for one until we start
  * bootstrapping; then we'll returned the same cached one every time.
+ *
+ * @return \Drush\Boot\Boot
  */
 function drush_get_bootstrap_object() {
   $bootstrap = drush_get_context('DRUSH_BOOTSTRAP_OBJECT', FALSE);
@@ -304,7 +333,7 @@ function drush_bootstrap($phase, $phase_max = FALSE) {
     if ($phase_index > $bootstrapped_phase) {
       if ($result = drush_bootstrap_validate($phase_index)) {
         if (method_exists($bootstrap, $current_phase) && !drush_get_error()) {
-          drush_log(dt("Drush bootstrap phase : !function()", array('!function' => $current_phase)), 'bootstrap');
+          drush_log(dt("Drush bootstrap phase : !function()", array('!function' => $current_phase)), LogLevel::BOOTSTRAP);
           $bootstrap->{$current_phase}();
 
           // Reset commandfile cache and find any new command files that are available during this bootstrap phase.
@@ -408,7 +437,7 @@ function drush_bootstrap_to_phase($max_phase_index) {
     return TRUE;
   }
 
-  drush_log(dt("Bootstrap to phase !phase.", array('!phase' => $max_phase_index)), 'bootstrap');
+  drush_log(dt("Bootstrap to phase !phase.", array('!phase' => $max_phase_index)), LogLevel::BOOTSTRAP);
   $phases = _drush_bootstrap_phases();
   $result = TRUE;
 

@@ -1,6 +1,6 @@
 <?php
 
-use Symfony\Component\Yaml\Yaml;
+use Drush\Log\LogLevel;
 
 /**
  * Implementation of hook_drush_command().
@@ -54,7 +54,7 @@ function variable_drush_command() {
       'always-set' => array('description' => 'Older synonym for --exact; deprecated.', 'hidden' => TRUE),
       'exact' => 'The exact name of the variable to set has been provided; do not prompt for similarly-named variables.',
       'format' => array(
-        'description' => 'Format to parse the object. Use "auto" to detect format from value (default), "string", "integer" or "boolean" for corresponding primitive type, and "json" for JSON.',
+        'description' => 'Type for  the value. Use "auto" to detect format from value. Other recognized values are string, integer float, or boolean for corresponding primitive type, or json, yaml for complex types.',
         'example-value' => 'boolean',
       ),
     ),
@@ -191,7 +191,7 @@ function drush_variable_set() {
   // If the value is a string (usual case, unless we are called from code),
   // then format the input
   if (is_string($value)) {
-    $value = _drush_variable_format($value, drush_get_option('format', 'auto'));
+    $value = drush_value_format($value, drush_get_option('format', 'auto'));
   }
 
   // Format the output for display
@@ -213,7 +213,7 @@ function drush_variable_set() {
 
   if ($always_set || count($options) == 1 || $match) {
     variable_set($args[0], $value);
-    drush_log(dt('!name was set to !value.', array('!name' => $args[0], '!value' => $display)), 'success');
+    drush_log(dt('!name was set to !value.', array('!name' => $args[0], '!value' => $display)), LogLevel::SUCCESS);
     return '';
   }
   else {
@@ -224,48 +224,8 @@ function drush_variable_set() {
     $choice = $options[$choice];
     $choice = str_replace(' ' . dt('(new variable)'), '', $choice);
     drush_op('variable_set', $choice, $value);
-    drush_log(dt('!name was set to !value', array('!name' => $choice, '!value' => $display)), 'success');
+    drush_log(dt('!name was set to !value', array('!name' => $choice, '!value' => $display)), LogLevel::SUCCESS);
   }
-}
-
-function _drush_variable_format($value, $format) {
-  if ($format == 'auto') {
-    if (is_int($value)) {
-      $format = 'integer';
-    }
-    elseif (($value == 'TRUE') || ($value == 'FALSE')) {
-      $format = 'bool';
-    }
-  }
-
-  // Now, we parse the object.
-  switch ($format) {
-    case 'integer':
-      $value = (integer)$value;
-      break;
-
-    case 'bool':
-    case 'boolean':
-      if ($value == 'TRUE') {
-        $value = TRUE;
-      }
-      elseif ($value == 'FALSE') {
-        $value = FALSE;
-      }
-      else {
-        $value = (bool)$value;
-      }
-      break;
-
-    case 'json':
-      $value = drush_json_decode($value);
-      break;
-
-    case 'yaml':
-      $value = Yaml::parse($value);
-      break;
-  }
-  return $value;
 }
 
 /**
@@ -293,7 +253,7 @@ function drush_variable_delete() {
 
   if ((count($options) == 1) && drush_get_context('DRUSH_AFFIRMATIVE')) {
     drush_op('variable_del', $args[0]);
-    drush_log(dt('!name was deleted.', array('!name' => $args[0])), 'success');
+    drush_log(dt('!name was deleted.', array('!name' => $args[0])), LogLevel::SUCCESS);
     return '';
   }
   else {
@@ -301,7 +261,7 @@ function drush_variable_delete() {
     if ($choice !== FALSE) {
       $choice = $options[$choice];
       drush_op('variable_del', $choice);
-      drush_log(dt('!choice was deleted.', array('!choice' => $choice)), 'success');
+      drush_log(dt('!choice was deleted.', array('!choice' => $choice)), LogLevel::SUCCESS);
     }
   }
 }
